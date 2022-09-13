@@ -8,7 +8,7 @@
 :white_check_mark: Генерация JWT    
 :white_check_mark: Не хранить пароли в открытом виде    
 :white_check_mark: Валидация полей API запросов    
-:white_check_mark: Защита авторизации
+:white_check_mark: Защита авторизации    
 :black_square_button: Endpoint для refresh token    
 :black_square_button: Тесты
 
