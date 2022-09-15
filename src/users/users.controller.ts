@@ -9,10 +9,11 @@ import { IUserController } from './users.controller.interface';
 import { UserLoginDto } from './dto/user-login.dto';
 import { ValidateMiddleware } from '../common/validate.middleware';
 import { UserRegisterDto } from './dto/user-register.dto';
-import { sign } from 'jsonwebtoken';
+import { JsonWebTokenError, sign, TokenExpiredError, verify } from 'jsonwebtoken';
 import { IConfigService } from '../config/config.service.iterface';
 import { IUserService } from './user.service.interface';
 import { AuthGuard } from '../common/auth.guard';
+import { jwt } from '../config/tokens.config';
 
 @injectable()
 export class UserController extends BaseController implements IUserController {
@@ -41,6 +42,12 @@ export class UserController extends BaseController implements IUserController {
 				func: this.info,
 				middlewares: [new AuthGuard()],
 			},
+			{
+				path: '/refresh',
+				method: 'get',
+				func: this.refreshTokens,
+				middlewares: [new AuthGuard()],
+			},
 		]);
 	}
 
@@ -50,11 +57,29 @@ export class UserController extends BaseController implements IUserController {
 		next: NextFunction,
 	): Promise<void> {
 		const result = await this.userService.validateUser(req.body);
+
 		if (!result) {
 			return next(new HTTPError(401, 'Ошибка авторизации', 'login'));
 		}
-		const jwt = await this.signJWT(req.body.email, this.configService.get('SECRET'));
-		this.ok(res, { jwt });
+
+		const accessToken = await this.generateAccessToken(
+			req.body.email,
+			this.configService.get('SECRET'),
+		);
+
+		const refreshToken = await this.generateRefreshToken(
+			req.body.email,
+			this.configService.get('SECRET'),
+		);
+		const decodeAccessToken = verify(accessToken, 'MYSECRET');
+
+		this.ok(res, {
+			accessToken: accessToken,
+			refreshToken: refreshToken,
+			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+			// @ts-ignore
+			exp: decodeAccessToken?.exp * 1000 - Date.now(),
+		});
 	}
 
 	async register(
@@ -71,29 +96,99 @@ export class UserController extends BaseController implements IUserController {
 		}
 	}
 
-	async info({ user }: Request, res: Response, next: NextFunction): Promise<void> {
+	async info(
+		{ headers: { authorization }, user }: Request,
+		res: Response,
+		next: NextFunction,
+	): Promise<void> {
 		const userInfo = await this.userService.getUserInfo(user);
-		this.ok(res, { id: userInfo?.id, email: userInfo?.email, name: userInfo?.name });
+		let decodedToken;
+		if (authorization) {
+			decodedToken = verify(authorization.split(' ')[1], this.configService.get('SECRET'));
+		}
+		this.ok(res, {
+			id: userInfo?.id,
+			email: userInfo?.email,
+			name: userInfo?.name,
+			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+			// @ts-ignore
+			token: decodedToken?.exp * 1000 - Date.now(),
+		});
 	}
 
-	private signJWT(email: string, secret: string): Promise<string> {
+	private generateAccessToken(email: string, secret: string): Promise<string> {
 		return new Promise<string>((resolve, reject) => {
-			sign(
-				{
-					email,
-					iat: Math.floor(Date.now() / 1000),
-				},
-				secret,
-				{
-					algorithm: 'HS256',
-				},
-				(err, token) => {
-					if (err) {
-						reject(err);
-					}
-					resolve(token as string);
-				},
-			);
+			const payload = {
+				email,
+				type: jwt.tokens.access.type,
+			};
+			const options = { expiresIn: jwt.tokens.access.expiresIn };
+			sign(payload, secret, options, (err, token) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(token as string);
+			});
 		});
+	}
+
+	private generateRefreshToken(email: string, secret: string): Promise<string> {
+		return new Promise<string>((resolve, reject) => {
+			const payload = {
+				email,
+				type: jwt.tokens.refresh.type,
+			};
+			const options = { expiresIn: jwt.tokens.refresh.expiresIn };
+			sign(payload, secret, options, (err, token) => {
+				if (err) {
+					reject(err);
+				}
+				resolve(token as string);
+			});
+		});
+	}
+
+	async refreshTokens(
+		{ headers: { authorization }, user }: Request,
+		res: Response,
+		next: NextFunction,
+	): Promise<void> {
+		const userInfo = await this.userService.getUserInfo(user);
+		try {
+			let decodedToken;
+			if (authorization) {
+				decodedToken = verify(authorization.split(' ')[1], this.configService.get('SECRET'));
+				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+				// @ts-ignore
+				if (decodedToken.type !== 'refresh') {
+					return next(new HTTPError(400, 'Некорректный токен', 'refresh'));
+				}
+			}
+		} catch (e) {
+			if (e instanceof TokenExpiredError) {
+				return next(new HTTPError(400, 'Срок действия токен истек', 'refresh'));
+			}
+			if (e instanceof JsonWebTokenError) {
+				return next(new HTTPError(400, 'Некорректный токен', 'refresh'));
+			}
+		}
+
+		if (userInfo) {
+			const accessToken = await this.generateAccessToken(
+				userInfo?.email,
+				this.configService.get('SECRET'),
+			);
+			const refreshToken = await this.generateAccessToken(
+				userInfo?.email,
+				this.configService.get('SECRET'),
+			);
+			this.ok(res, {
+				id: userInfo?.id,
+				email: userInfo?.email,
+				name: userInfo?.name,
+				accessToken: accessToken,
+				refreshToken: refreshToken,
+			});
+		}
 	}
 }
