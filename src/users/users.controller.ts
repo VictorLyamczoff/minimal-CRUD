@@ -105,15 +105,15 @@ export class UserController extends BaseController implements IUserController {
 		let decodedToken;
 		if (authorization) {
 			decodedToken = verify(authorization.split(' ')[1], this.configService.get('SECRET'));
+			this.ok(res, {
+				id: userInfo?.id,
+				email: userInfo?.email,
+				name: userInfo?.name,
+				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+				// @ts-ignore
+				token: decodedToken?.exp * 1000 - Date.now(),
+			});
 		}
-		this.ok(res, {
-			id: userInfo?.id,
-			email: userInfo?.email,
-			name: userInfo?.name,
-			// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-			// @ts-ignore
-			token: decodedToken?.exp * 1000 - Date.now(),
-		});
 	}
 
 	private generateAccessToken(email: string, secret: string): Promise<string> {
