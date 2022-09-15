@@ -9,7 +9,7 @@
 :white_check_mark: Не хранить пароли в открытом виде    
 :white_check_mark: Валидация полей API запросов    
 :white_check_mark: Защита авторизации    
-:black_square_button: Endpoint для refresh token    
+:white_check_mark: Endpoint для refresh token    
 :black_square_button: Тесты
 
 ## Список API endpoint
@@ -29,7 +29,7 @@ RETURN:
 ```json
 {
   "email": "email@myemail.ru",
-  "id": 5
+  "id": "75705b98-f99e-4d06-a4fe-30e47c0060ea"
 }
 ```
 
@@ -48,7 +48,9 @@ RETURN:
 
 ```json
 {
-  "jwt": "token"
+  "accessToken": "token",
+  "refreshToken": "token",
+  "exp": "1800000"
 }
 ```
 
@@ -62,8 +64,27 @@ RETURN:
 
 ```json
 {
-  "id": 5,
+  "id": "75705b98-f99e-4d06-a4fe-30e47c0060ea",
   "email": "email@myemail.ru",
-  "name": "Петя"
+  "name": "Петя",
+  "token": 1705860
+}
+```
+
+---
+
+- GET /users/refresh
+
+  HEADER: ```Authorization: Bearer {token}```
+
+RETURN:
+
+```json
+{
+  "id": "75705b98-f99e-4d06-a4fe-30e47c0060ea",
+  "email": "email@myemail.ru",
+  "name": "Петя",
+  "accessToken": "token",
+  "refreshToken": "token"
 }
 ```
