@@ -3,8 +3,8 @@
 :white_check_mark: Регистрация    
 :white_check_mark: Авторизация    
 :black_square_button: Выход из системы    
-:black_square_button: Удаление пользователя    
-:black_square_button: Обновление данных пользователя пользователя    
+:white_check_mark: Удаление пользователя    
+:black_square_button: Обновление данных пользователя    
 :white_check_mark: Генерация JWT    
 :white_check_mark: Не хранить пароли в открытом виде    
 :white_check_mark: Валидация полей API запросов    

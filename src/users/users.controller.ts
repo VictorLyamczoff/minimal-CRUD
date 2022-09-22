@@ -48,6 +48,12 @@ export class UserController extends BaseController implements IUserController {
 				func: this.refreshTokens,
 				middlewares: [new AuthGuard()],
 			},
+			{
+				path: '/delete',
+				method: 'delete',
+				func: this.delete,
+				middlewares: [new AuthGuard()],
+			},
 		]);
 	}
 
@@ -96,12 +102,39 @@ export class UserController extends BaseController implements IUserController {
 		}
 	}
 
+	async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+		if (req.headers.authorization) {
+			const userInfo = await this.userService.getUserInfo(req.user);
+			const decodedToken = verify(
+				req.headers.authorization.split(' ')[1],
+				this.configService.get('SECRET'),
+			);
+			if (userInfo) {
+				// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+				// @ts-ignore
+				if (decodedToken?.email == userInfo.email) {
+					const result = await this.userService.deleteUser(userInfo.email);
+					if (result) {
+						this.ok(res, { success: 'success' });
+						// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+						// @ts-ignore
+						//FIXME: так нельзя удалять
+						delete req.user;
+					}
+				}
+			}
+		}
+	}
+
 	async info(
 		{ headers: { authorization }, user }: Request,
 		res: Response,
 		next: NextFunction,
 	): Promise<void> {
 		const userInfo = await this.userService.getUserInfo(user);
+		if (userInfo == null) {
+			return;
+		}
 		let decodedToken;
 		if (authorization) {
 			decodedToken = verify(authorization.split(' ')[1], this.configService.get('SECRET'));

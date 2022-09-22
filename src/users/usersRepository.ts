@@ -26,4 +26,12 @@ export class UsersRepository implements IUserRepository {
 			},
 		});
 	}
+
+	async deleteUser(email: string): Promise<UserModel | null> {
+		return this.prismaService.client.userModel.delete({
+			where: {
+				email,
+			},
+		});
+	}
 }
