@@ -10,6 +10,7 @@ import { IExceptionFilter } from './errors/exception.filter.interface';
 import { UserController } from './users/users.controller';
 import { PrismaService } from './database/prisma.service';
 import { AuthMiddleware } from './common/auth.middleware';
+import passport from 'passport';
 
 @injectable()
 export class App {
@@ -39,6 +40,7 @@ export class App {
 		this.app.use(json());
 		const authMiddleware = new AuthMiddleware(this.configService.get('SECRET'));
 		this.app.use(authMiddleware.execute.bind(authMiddleware));
+		this.app.use(passport.initialize());
 	}
 
 	useExceptionFilters(): void {

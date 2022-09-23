@@ -115,11 +115,12 @@ export class UserController extends BaseController implements IUserController {
 				if (decodedToken?.email == userInfo.email) {
 					const result = await this.userService.deleteUser(userInfo.email);
 					if (result) {
-						this.ok(res, { success: 'success' });
-						// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-						// @ts-ignore
-						//FIXME: так нельзя удалять
-						delete req.user;
+						//TODO: переделать на express-session
+						req.logout((done) => {
+							if (done) {
+								this.ok(res, { success: 'success', message: 'logout' });
+							}
+						});
 					}
 				}
 			}
